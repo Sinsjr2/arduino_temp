@@ -1,0 +1,16 @@
+### Project ###
+/bin
+
+### C ###
+# Object files
+*.o
+*.elf
+*.hex
+
+# Linker output
+*.map
+
+### Nim ###
+nimcache/
+nimblecache/
+htmldocs/
