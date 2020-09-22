@@ -68,6 +68,7 @@ proc read*(this: var HardwareSerial): cint {.importcpp: "read", header: "Arduino
 proc write*(this: var HardwareSerial; n: uint8): csize_t {.importcpp: "write", header: "HardwareSerial.h".}
 proc print*(this: var HardwareSerial; s: cstring) {.importcpp: "print", header: "Arduino.h".}
 proc println*(this: var HardwareSerial; s: cstring) {.importcpp: "println", header: "Arduino.h".}
+proc print*(this: var HardwareSerial; number: float; digits: uint8) : csize_t {.importcpp: "print", header: "HardwareSerial.h".}
 proc flush*(this: var HardwareSerial) {.importcpp: "flush", header: "Arduino.h".}
 
 proc pgmReadByte*(a: ptr uint8): uint8 {.importc:"pgm_read_byte", header:"avr/pgmspace.h" .}
