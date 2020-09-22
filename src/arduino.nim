@@ -73,18 +73,19 @@ proc flush*(this: var HardwareSerial) {.importcpp: "flush", header: "Arduino.h".
 proc pgmReadByte*(a: ptr uint8): uint8 {.importc:"pgm_read_byte", header:"avr/pgmspace.h" .}
 
 
-# proc myputchar*(c: char, f: FILE): cint {.exportc,cdecl.} =
-#   discard Serial.write(c.uint8).cint
-#   result = 0
+proc myputchar*(c: char, f: FILE): cint {.exportc,cdecl.} =
+  discard Serial.write(c.uint8)
+  return 1
 
-# proc fdevopen*(put: proc (a1: char; a2: FILE): cint {.cdecl.};
-#                get: proc (a1: FILE): cint {.cdecl.} ): FILE {.importcpp: "fdevopen(@)", header: "stdio.h".}
+proc fdevopen*(put: proc (a1: char; a2: FILE): cint {.cdecl.};
+               get: proc (a1: FILE): cint {.cdecl.} ): FILE {.importcpp: "fdevopen(@)", header: "stdio.h".}
 
 # Convenience macros for the setup() and loop() functions
 
 template setup*(code: untyped) =
   proc setup*() {.exportc.} =
-    # stdout = fdevopen(myputchar, nil)
+    stdout = fdevopen(myputchar, nil)
+    stderr = fdevopen(myputchar, nil)
     code 
 
 template loop*(code: untyped) =
