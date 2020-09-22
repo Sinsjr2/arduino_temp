@@ -1,20 +1,8 @@
 import arduino
+import wire/wire as w
 import sd/SD as s
 # import sd/utility/Sd2Card as c
-# import strutils
-
-# proc fdevopen*(put: proc (a1: char; a2: FILE): cint {.cdecl.};
-#                get: proc (a1: FILE): cint {.cdecl.} ): FILE {.importcpp: "fdevopen(@)", header: "stdio.h".}
-
-
-# template setup*(code: untyped) =
-#   proc setup*() {.exportc.} =
-#     # stdout = fdevopen(myputchar, nil)
-#     code 
-
-# template loop*(code: untyped) =
-#   proc loop*() {.exportc.} =
-#     code 
+import strutils
 
 
 #var rxbuf: string = ""
@@ -51,7 +39,18 @@ import sd/SD as s
 #   Serial.println "SD initialized"
 #   return true
 
-setup:
+proc readI2CTemplature() : float =
+  ## i2c経由で温度センサの値を読み込みます。
+  discard w.Wire.requestFrom(0x49'u8, 2'u8)
+  var temp = 0'u16;
+  while 0'u8 < w.Wire.available():
+    let b = Wire.read();
+    temp = temp shl 8'u8;
+    temp = temp or b;
+
+  return temp.float / 128.0f
+
+proc hoge =
   Serial.begin 9600
   Serial.println "<Arduino is ready>1"
   Serial.println "<Arduino is ready>2"
@@ -64,21 +63,32 @@ setup:
   Serial.println "<Arduino is ready>9"
   Serial.println "<Arduino is ready>10"
   Serial.println "<Arduino is ready>11"
-  # Serial.flush()
+  Serial.flush()
   # Serial.println "<Arduino is ready>12"
   # delayMicroseconds 9999
   # delayMicroseconds 9999
   # let isOk = s.SDc.begin(4)
+  # if (not s.SDc.begin(4)):
+  #   return
+
+
+setup:
+  Serial.begin 9600
+  Serial.println "<Arduino is ready>"
   if (not s.SDc.begin(4)):
     return
+  # hoge()
+
   Serial.println "SD initialized"
   var myFile = s.SDc.open("test.txt", s.FILE_READ)
+  if (not myFile):
+    Serial.println("error opening test.txt");
+    return
+
   while (myFile.available() != 0):
     discard Serial.write(cast[uint8](myFile.read()))
 
-  # if not s.SDc.begin(4):
-  #   Serial.println("initialization failed!");
-  #   return
+  w.Wire.begin()
   # Serial.println "SD initialized"
 
 
@@ -88,21 +98,38 @@ setup:
   #                 else :
   #                   "false")
 
-  # var myFile = s.SDc.open(filename, s.FILE_READ)
-  # if (not myFile):
-  #   Serial.println("error opening test.txt");
-  #   return
-
-  # # myFile.writeToFile("kkkkkkskskkskskksk");
-
   # # Serial.println(myFile.size())
   # Serial.println(myFile.available().intToStr())
-  # return
   # while (myFile.available() != 0):
   #   discard Serial.write(cast[uint8](myFile.read()));
 
+proc printStr(str : string) =
+  for c in str:
+    discard Serial.write(cast[uint8](c))
+
 loop:
-  Serial.println "loop"
+  # var temp = 0'u16;
+  # # while 0'u8 < w.Wire.available():
+  # #   let b = Wire.read();
+  # #   temp = temp shl 8'u8;
+  # #   temp = temp or b;
+  # Serial.println "laap"
+  # Serial.flush()
+  # let value = 0.0f < (17.0f / 128.0f)
+
+  # Serial.println("eeeee")
+  # printStr(if value:
+  #            "true"
+  #          else:
+  #            "cold")
+  # Serial.println("loop")
+  # Serial.println(if value:
+  #                  ""
+  #                else:
+  #                  "cold")
+
+  discard Serial.print(readI2CTemplature(), 10'u8)
+  Serial.println("")
   delay(1000)
   # recvWithEndMarker()
   # showNewData()
