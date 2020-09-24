@@ -40,8 +40,8 @@ template nointerrupts*() = {.emit:"cli();".}
 #                                     header: "Arduino.h".}
 # proc analogWrite*(pin: uint8; val: cint) {.importcpp: "analogWrite(@)",
 #                                         header: "Arduino.h".}
-# proc millis*(): culong {.importcpp: "millis(@)", header: "Arduino.h".}
-# proc micros*(): culong {.importcpp: "micros(@)", header: "Arduino.h".}
+proc millis*(): culong {.importcpp: "millis(@)", header: "Arduino.h".}
+proc micros*(): culong {.importcpp: "micros(@)", header: "Arduino.h".}
 proc delay*(ms: culong) {.importcpp: "delay(@)", header: "Arduino.h".}
 # proc delayMicroseconds*(us: cuint) {.importcpp: "delayMicroseconds(@)",
 #                                   header: "Arduino.h".}
