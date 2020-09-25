@@ -22,7 +22,7 @@ import
 
 const
   FILE_READ* {.intdefine.} = O_READ
-  FILE_WRITE* {.intdefine.} = (O_READ xor O_WRITE xor O_CREAT xor O_APPEND)
+  FILE_WRITE* : uint8 = ((O_READ or O_WRITE or O_CREAT or O_APPEND)).uint8
 
 type
   File* {.importcpp: "SDLib::File", header: "SD.h", byref.} = object
