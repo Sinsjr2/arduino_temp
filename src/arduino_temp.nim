@@ -238,7 +238,7 @@ proc setupCurrentTime() : Time =
   ## SDカードのファイルの中に現在の時刻が書かれていればそちらを返し、そうでなければ
   ## ハードコードの時間を返します。
   ## ファイルの中にはunixtime(秒)が整数で入っています。
-  const defaultTime = Time(seconds: 1560000000'i64, milliseconds: 0)
+  const defaultTime = Time(seconds: 1601127217'i64, milliseconds: 0)
   # if (not s.SDc.begin(4)):
   #   return defaultTime
 
