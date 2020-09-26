@@ -228,7 +228,7 @@ var sensorSdTimer : CycleTimer
 const timeFilename = "/cutime.txt"
 
 ## sdカードのファイルの現在時刻の更新周期時間
-const currentTimeUpdateMsec = 5 * 1000
+const currentTimeUpdateMsec = 2 * 60 * 1000
 
 ## SDカードのファイルの現在時刻を書き換えるためのタイマー
 var sdFileCurrentTimeUpdateTimer : CycleTimer
