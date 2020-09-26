@@ -219,7 +219,7 @@ func calcDeltaTimeMs(this : TimeDelta, passedTime : uint32) : TimeDelta =
   return TimeDelta(prevTimeMsec : passedTime, deltaTime : diffTimeMsec)
 
 ## 温度の観測周期時間(ミリ秒)
-const observeTempTimeMS = 3 * 1000
+const observeTempTimeMS = 10 * 60 * 1000
 
 ## 温度を観測し、その温度をSDカードに保存するのに使用するタイマー
 var sensorSdTimer : CycleTimer
