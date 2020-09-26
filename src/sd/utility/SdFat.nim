@@ -80,7 +80,7 @@ const LS_R* {.intdefine.} = 4
 ##  use the gnu style oflag in open()
 ## * open() oflag for reading
 
-const O_READ* {.intdefine.} = 0x01
+const O_READ* {.intdefine.} = 0x01'u8
 
 ## * open() oflag - same as O_READ
 
@@ -88,7 +88,7 @@ const O_RDONLY* {.intdefine.} = O_READ
 
 ## * open() oflag for write
 
-const O_WRITE* {.intdefine.} = 0x002
+const O_WRITE* {.intdefine.} = 0x002'u8
 
 ## * open() oflag - same as O_WRITE
 
@@ -104,15 +104,15 @@ const O_ACCMODE* {.intdefine.} = O_READ xor O_WRITE
 
 ## * The file offset shall be set to the end of the file prior to each write.
 
-const O_APPEND* {.intdefine.} = 0x04
+const O_APPEND* {.intdefine.} = 0x04'u8
 
 ## * synchronous writes - call sync() after each write
 
-const O_SYNC* = 0x08
+const O_SYNC* = 0x08'u8
 
 ## * create the file if nonexistent
 
-const O_CREAT* {.intdefine.} = 0x10
+const O_CREAT* {.intdefine.} = 0x10'u8
 
 ## * If O_CREAT and O_EXCL are set, open() shall fail if the file exists
 
