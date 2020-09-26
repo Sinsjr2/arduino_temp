@@ -167,10 +167,13 @@ proc printTemplature() =
   var date = currentUnixTime.getDate()
   var temp = readI2CTemplature()
 
-  # if (not s.SDc.begin(4)):
-  #   return
+  if (not s.SDc.begin(4)):
+    return
+  defer: s.SDc.`end`()
 
   var myFile = s.SDc.open("test.txt", s.FILE_WRITE)
+  defer:
+    myFile.close()
   if (not myFile):
     discard Serial.println("error opening test.txt");
     return
@@ -180,8 +183,6 @@ proc printTemplature() =
   discard myFile.print(temp)
   discard myFile.write(('\n').uint8)
 
-  myFile.close()
-  # s.SDc.`end`()
 
 type CycleTimer = object
   currentTime : uint32
@@ -269,8 +270,15 @@ proc updateCurrentTimeInFile(currentTime : Time) =
   ## SDカードのファイル内に記述されている現在時刻を更新します。
   ## SDカードが無い場合は何もしません。
   ## また、ファイルがなければ新しく作ります。
+  if (not s.SDc.begin(4)):
+    return
+  defer: s.SDc.`end`()
+
 
   var configFile = s.SDc.open(timeFilename, sf.O_WRITE or sf.O_CREAT or sf.O_TRUNC)
+  defer :
+    configFile.close()
+
   discard Serial.print("update time in sd ")
   printDate(Serial, currentUnixTime.getDate())
   discard Serial.println()
@@ -283,7 +291,6 @@ proc updateCurrentTimeInFile(currentTime : Time) =
     return
 
   discard configFile.print($currentTime.seconds)
-  configFile.close()
 
 
 
