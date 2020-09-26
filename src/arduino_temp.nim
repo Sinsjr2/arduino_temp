@@ -175,7 +175,7 @@ proc printTemplature() =
     discard Serial.println("error opening test.txt");
     return
   printDate(myFile, date)
-  discard myFile.print(" ")
+  discard myFile.print(", ")
 
   discard myFile.print(temp)
   discard myFile.write(('\n').uint8)
