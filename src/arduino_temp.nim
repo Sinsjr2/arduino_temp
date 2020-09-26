@@ -1,8 +1,12 @@
 import arduino
+import arduino/Print as p
 import wire/wire as w
 import sd/SD as s
 # import sd/utility/Sd2Card as c
 import strutils
+import sd/utility/SdFat as sf
+import parseutils as pu
+import sugar
 
 const GMT_TOKYO* : uint32 = 9*60*60
 const SECONDS_IN_A_DAY* =  24*60*60
@@ -50,10 +54,10 @@ const YEAR_400*  = YEAR_100 * 4 + 1    #  it is YEAR_100*4+1 so the maximum remi
 type Time = object
   ## 時間を表します。
   seconds: int64
-  nanoseconds : int32
+  milliseconds : int32
 
 type Date = object
-  nanoseconds*: int32
+  milliseconds*: int32
   second*: int8
 
   minute*: int8
@@ -66,18 +70,18 @@ type Date = object
 
 func addMilliSec(this : Time, addMsec : uint32 ) : Time =
   ## 現在の時間に指定されたミリ秒を追加します。
-  const nanoSecondMax = 999_999_999'u32
+  const milliSecondMax = 1_000'u64
   # オーバーフローしないように型を変更
   # ナノ秒単位に変換
-  let converted = addMsec * 1000'u64
-  let ns = this.nanoseconds.uint64 + converted
+  let converted = addMsec.uint64
+  let ns = this.milliseconds.uint64 + converted
   # あふれることが無いので元の型に戻す
-  let currentNsec = (ns mod nanoSecondMax).int32
+  let currentNsec = (ns mod milliSecondMax).int32
 
   # 秒数に関してはオーバーフローする可能性があるが、それは現実的ではない大きな値なので無視する
-  let currentMsec = this.seconds + (ns div nanoSecondMax).int64
+  let currentMsec = this.seconds + (ns div milliSecondMax).int64
 
-  return Time(seconds : currentMsec, nanoseconds: currentNsec)
+  return Time(seconds : currentMsec, milliseconds: currentNsec)
 
 proc getDate*(this : Time) : Date =
   ## 引数のUnix時間を西暦表記に変更します。
@@ -94,8 +98,6 @@ proc getDate*(this : Time) : Date =
   let weekday = ((unixday + 3) mod 7).uint8 #  because the unix epoch day is thursday
   #  days from 0000/03/01 to 1970/01/01
   unixday = unixday + UNIX_EPOCH_DAY
-  discard Serial.print(unixday, 10'u8)
-  Serial.println("")
 
   var year = 400 * (unixday div YEAR_400)
   unixday = unixday mod YEAR_400
@@ -130,7 +132,7 @@ proc getDate*(this : Time) : Date =
       if month <= 3 :
           year = year + 1
     
-  return Date(nanoseconds : this.nanoseconds, second : second, minute : minute, hour : hour, monthday : day, month : month, year : year.int16)
+  return Date(milliseconds : this.milliseconds, second : second, minute : minute, hour : hour, monthday : day, month : month, year : year.int16)
 
 proc readI2CTemplature() : float =
   ## i2c経由で温度センサの値を読み込みます。
@@ -143,87 +145,184 @@ proc readI2CTemplature() : float =
 
   return temp.float / 128.0f
 
-proc hoge =
-  Serial.begin 9600
-  Serial.println "<Arduino is ready>1"
-  Serial.println "<Arduino is ready>2"
-  Serial.println "<Arduino is ready>3"
-  Serial.println "<Arduino is ready>4"
-  Serial.println "<Arduino is ready>5"
-  Serial.println "<Arduino is ready>6"
-  Serial.println "<Arduino is ready>7"
-  Serial.println "<Arduino is ready>8"
-  Serial.println "<Arduino is ready>9"
-  Serial.println "<Arduino is ready>10"
-  Serial.println "<Arduino is ready>11"
-  Serial.flush()
-  # Serial.println "<Arduino is ready>12"
-  # delayMicroseconds 9999
-  # delayMicroseconds 9999
-  # let isOk = s.SDc.begin(4)
+## 現在のunixTime
+var currentUnixTime : Time
+
+
+proc printDate(pri : var p.Print, date : Date) =
+  discard pri.print(date.year)
+  discard pri.print("/")
+  discard pri.print(date.month)
+  discard pri.print("/")
+  discard pri.print(date.monthday)
+  discard pri.print(" ")
+  discard pri.print(date.hour)
+  discard pri.print(":")
+  discard pri.print(date.minute)
+  discard pri.print(":")
+  discard pri.print(date.second)
+
+proc printTemplature() =
+  ## センサーから読み込んだ温度を表示します
+  var date = currentUnixTime.getDate()
+  var temp = readI2CTemplature()
+
   # if (not s.SDc.begin(4)):
   #   return
+
+  var myFile = s.SDc.open("test.txt", s.FILE_WRITE)
+  if (not myFile):
+    discard Serial.println("error opening test.txt");
+    return
+  printDate(myFile, date)
+  discard myFile.print(" ")
+
+  discard myFile.print(temp)
+  discard myFile.write(('\n').uint8)
+
+  myFile.close()
+  # s.SDc.`end`()
+
+type CycleTimer = object
+  currentTime : uint32
+  waitTime : uint32
+  onPassedTime : proc ()
+
+proc onUpdate(this : var CycleTimer, deltaTime: uint32) =
+  this.currentTime += deltaTime
+  if this.waitTime <= this.currentTime:
+    # 設定した時間が多すぎた場合に複数回呼び出さないようにするため
+    this.currentTime = this.currentTime mod this.waitTime
+    this.onPassedTime()
+
+func cycleTimerMS(milliSec: uint32, onPassedTime : proc (), callsFirst : bool) : CycleTimer =
+  ## 指定されたミリ秒ごとに関数を呼び出します。
+  ## 戻り値のオブジェクトを一定期間毎に呼び出す必要があります。
+  ## 初回の呼び出しでコールバック関数を呼び出すかどうかを指定します。
+  if callsFirst :
+    onPassedTime()
+  return CycleTimer(currentTime : 0, waitTime : milliSec, onPassedTime : onPassedTime)
+
+type TimeDelta = object
+  ## 前回との時間の差分を計算するためのクラスです。
+  prevTimeMsec : uint32
+  deltaTime : uint32
+
+
+func calcDeltaTimeMs(this : TimeDelta, passedTime : uint32) : TimeDelta =
+  ## 前回との時間の差分(ミリ秒)を計算します。
+
+  # オーバーフローやアンダーフローすることを前提としている
+  {.push overflowChecks: off}
+  let diffTimeMsec = passedTime - this.prevTimeMsec
+  {. pop .}
+  return TimeDelta(prevTimeMsec : passedTime, deltaTime : diffTimeMsec)
+
+## 温度の観測周期時間(ミリ秒)
+const observeTempTimeMS = 3 * 1000
+
+## 温度を観測し、その温度をSDカードに保存するのに使用するタイマー
+var sensorSdTimer : CycleTimer
+
+## 現在時刻を保存するファイル名
+const timeFilename = "/cutime.txt"
+
+## sdカードのファイルの現在時刻の更新周期時間
+const currentTimeUpdateMsec = 5 * 1000
+
+## SDカードのファイルの現在時刻を書き換えるためのタイマー
+var sdFileCurrentTimeUpdateTimer : CycleTimer
+
+proc setupCurrentTime() : Time =
+  ## 現在の時刻をセットアップします。
+  ## SDカードのファイルの中に現在の時刻が書かれていればそちらを返し、そうでなければ
+  ## ハードコードの時間を返します。
+  ## ファイルの中にはunixtime(秒)が整数で入っています。
+  const defaultTime = Time(seconds: 1560000000'i64, milliseconds: 0)
+  # if (not s.SDc.begin(4)):
+  #   return defaultTime
+
+  var configFile = s.SDc.open(timeFilename, sf.O_READ)
+  discard Serial.println(if s.SDc.exists(timeFilename) :
+                   "true"
+                 else :
+                   "false")
+
+  if not configFile:
+    configFile.close()
+
+    return defaultTime
+
+  var timeStr = ""
+  while 0 < configFile.available():
+    timeStr.add(configFile.read().char)
+  configFile.close()
+
+  var seconds: BiggestInt
+  let len = pu.parseBiggestInt(timeStr, seconds, 0)
+  if len == 0 or len != timeStr.len:
+    return defaultTime
+
+  return Time(seconds: seconds, milliseconds : 0)
+
+proc updateCurrentTimeInFile(currentTime : Time) =
+  ## SDカードのファイル内に記述されている現在時刻を更新します。
+  ## SDカードが無い場合は何もしません。
+  ## また、ファイルがなければ新しく作ります。
+
+  var configFile = s.SDc.open(timeFilename, sf.O_WRITE or sf.O_CREAT or sf.O_TRUNC)
+  discard Serial.print("update time in sd ")
+  printDate(Serial, currentUnixTime.getDate())
+  discard Serial.println()
+
+  discard Serial.println(if s.SDc.exists(timeFilename) :
+                   "true"
+                 else :
+                   "false")
+  if not configFile:
+    return
+
+  discard configFile.print($currentTime.seconds)
+  configFile.close()
+
 
 
 setup:
   Serial.begin 9600
-  Serial.println "<Arduino is ready>"
-  if (not s.SDc.begin(4)):
-    return
-  # hoge()
-
-  Serial.println "SD initialized"
-  var myFile = s.SDc.open("test.txt", s.FILE_READ)
-  if (not myFile):
-    Serial.println("error opening test.txt");
-    return
-
-  while (myFile.available() != 0):
-    discard Serial.write(cast[uint8](myFile.read()))
-
+  discard Serial.println "<Arduino is ready>"
   w.Wire.begin()
-  # Serial.println "SD initialized"
+  if (not s.SDc.begin(4)):
+    discard Serial.println("SD initialize failed")
+
+  currentUnixTime = setupCurrentTime()
+  printDate(Serial, currentUnixTime.getDate())
+  discard Serial.println()
 
 
-  # let filename = "/test.txt";
-  # Serial.println( if s.SDc.exists(filename):
-  #                   "true"
-  #                 else :
-  #                   "false")
+  # var myFile = s.SDc.open("test.txt", s.FILE_READ)
+  # if (not myFile):
+  #   discard Serial.println("error opening test.txt");
+  #   return
 
-  # # Serial.println(myFile.size())
-  # Serial.println(myFile.available().intToStr())
+  # discard Serial.println(myFile.available().intToStr())
   # while (myFile.available() != 0):
-  #   discard Serial.write(cast[uint8](myFile.read()));
+  #   discard Serial.write(myFile.read().uint8);
+  # myFile.close()
+  sdFileCurrentTimeUpdateTimer = cycleTimerMS(currentTimeUpdateMsec, () => updateCurrentTimeInFile(currentUnixTime), true)
+  sensorSdTimer = cycleTimerMS(observeTempTimeMS, () => printTemplature(), true)
 
 proc printStr(str : string) =
   for c in str:
     discard Serial.write(cast[uint8](c))
 
+## loop関数で呼ばれてから経過した時間
+var prevTimeMsec = TimeDelta()
+
+
 loop:
-  # var temp = 0'u16;
-  # # while 0'u8 < w.Wire.available():
-  # #   let b = Wire.read();
-  # #   temp = temp shl 8'u8;
-  # #   temp = temp or b;
-  # Serial.println "laap"
-  # Serial.flush()
-  # let value = 0.0f < (17.0f / 128.0f)
-
-  # Serial.println("eeeee")
-  # printStr(if value:
-  #            "true"
-  #          else:
-  #            "cold")
-  # Serial.println("loop")
-  # Serial.println(if value:
-  #                  ""
-  #                else:
-  #                  "cold")
-
-  discard Serial.print(readI2CTemplature(), 10'u8)
-  Serial.println("")
-  delay(1000)
-  # recvWithEndMarker()
-  # showNewData()
+  # 前回との時間の差分をとる
+  prevTimeMsec = prevTimeMsec.calcDeltaTimeMs(millis().uint32)
+  currentUnixTime = currentUnixTime.addMilliSec(prevTimeMsec.deltaTime)
+  sdFileCurrentTimeUpdateTimer.onUpdate(prevTimeMsec.deltaTime)
+  sensorSdTimer.onUpdate(prevTimeMsec.deltaTime)
 
