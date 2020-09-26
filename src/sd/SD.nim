@@ -12,7 +12,8 @@
 ##
 ##
 import
-  utility/SdFat#, utility/SdFatUtil
+  utility/SdFat, ../arduino/Stream#, utility/SdFatUtil
+
 
 {. compile: "SD.cpp".}
 {. compile: "File.cpp".}
@@ -25,7 +26,7 @@ const
   FILE_WRITE* : uint8 = O_READ or O_WRITE or O_CREAT or O_APPEND
 
 type
-  File* {.importcpp: "SDLib::File", header: "SD.h", byref.} = object
+  File* {.importcpp: "SDLib::File", header: "SD.h", byref.} = object of Stream
     ##  our name
     ##  underlying file pointer
 
