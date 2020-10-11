@@ -258,12 +258,15 @@ proc setupCurrentTime() : Time =
     return defaultTime
 
   var timeStr = ""
+  discard Serial.println(configFile.available())
   while 0 < configFile.available():
     timeStr.add(configFile.read().char)
   configFile.close()
+  discard Serial.println(timeStr)
 
   var seconds: BiggestInt
   let len = pu.parseBiggestInt(timeStr, seconds, 0)
+  discard Serial.println(len)
   if len == 0 or len != timeStr.len:
     return defaultTime
 
@@ -305,11 +308,11 @@ setup:
   delay(3000)
 
   Serial.begin 9600
-  discard Serial.println "<Arduino is ready>"
   w.Wire.begin()
   if (not s.SDc.begin(4)):
     discard Serial.println("SD initialize failed")
 
+  discard Serial.println "<Arduino is ready>"
   currentUnixTime = setupCurrentTime()
   printDate(Serial, currentUnixTime.getDate())
   discard Serial.println()
