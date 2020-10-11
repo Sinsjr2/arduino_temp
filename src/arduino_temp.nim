@@ -295,6 +295,12 @@ proc updateCurrentTimeInFile(currentTime : Time) =
 
 
 setup:
+  # 電源投入時では、SDカードの読み取りに失敗することがあり、
+  # おそらくSDカードへの電力が供給されるのに時間差があるためである。
+  # そこで、遅延時間を設けている
+  # 値は、実際にためして、SDカードのファイルの読み込みに成功した時間を使っている
+  delay(3000)
+
   Serial.begin 9600
   discard Serial.println "<Arduino is ready>"
   w.Wire.begin()
