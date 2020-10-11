@@ -171,11 +171,14 @@ proc printTemplature() =
     return
   defer: s.SDc.`end`()
 
-  var myFile = s.SDc.open("test.txt", s.FILE_WRITE)
+  let filename = date.year.intToStr() & date.month.intToStr() & date.monthday.intToStr() & ".csv"
+
+  var myFile = s.SDc.open(filename, s.FILE_WRITE)
   defer:
     myFile.close()
   if (not myFile):
-    discard Serial.println("error opening test.txt");
+    discard Serial.print("error opening ");
+    discard Serial.println(filename)
     return
   printDate(myFile, date)
   discard myFile.print(", ")
