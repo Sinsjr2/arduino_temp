@@ -181,7 +181,7 @@ proc printTemplature() =
     discard Serial.println(filename)
     return
   printDate(myFile, date)
-  discard myFile.print(", ")
+  discard myFile.print(",")
 
   discard myFile.print(temp)
   discard myFile.write(('\n').uint8)
